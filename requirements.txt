@@ -1,0 +1,115 @@
+PersonTracking - AMB82-MINI 安裝與執行需求
+========================================
+
+這是 Arduino 專案的套件與安裝說明，請依下列步驟操作。
+
+1. 開發工具與開發板套件（必要）
+----------------------------------------
+Arduino IDE 2.x：
+https://www.arduino.cc/en/software
+
+在 Arduino IDE 的「檔案 > 偏好設定 > 額外的開發板管理員網址」加入：
+https://raw.githubusercontent.com/Ameba-AIoT/ameba-arduino-pro2/main/Arduino_package/package_realtek_amebapro2_index.json
+
+開啟「開發板管理員」，搜尋並安裝：
+Realtek Ameba Boards (32-bit Arm v8M @500MHz)
+重現用版本：4.0.9（官方封裝 build20250805）
+本機安裝版本名稱：4.0.9-build20250805
+
+選擇開發板：AMB82-MINI
+開發板識別碼（FQBN）：realtek:AmebaPro2:Ameba_AMB82-MINI
+
+2. 程式需要的函式庫（全部隨上述開發板套件提供）
+----------------------------------------
+Arduino core：Arduino.h
+AmebaAnalog 1.0.0（Analog 目錄）：AmebaServo.h
+WiFi 1.0.0：WiFi.h
+AmebaMultimedia 1.0.0（Multimedia 目錄）：StreamIO.h、VideoStream.h、RTSP.h、VideoStreamOverlay.h
+AmebaNN 1.0.0（NeuralNetwork 目錄）：NNObjectDetection.h
+AmebaFileSystem 1.0.0（FileSystem 目錄）：上述函式庫間接使用，由編譯器自動帶入
+FreeRTOS：FreeRTOS.h、queue.h（開發板 SDK 內建）
+
+不需要額外在 Library Manager 安裝 Servo、FreeRTOS 或 YOLO 函式庫。
+程式使用 SDK 內建 DEFAULT_YOLOV4TINY 模型，於 AMB82-MINI 本機推論。
+安裝開發板套件時會一併安裝對應工具鏈與模型套件。
+官方 4.0.9 的工具依賴：
+  ameba_pro2_toolchain  1.0.1-p1
+  ameba_pro2_toolchain2 1.0.1-p2
+  ameba_pro2_tools      1.4.5
+  ameba_pro2_nn_models  1.0.2
+以上由 Boards Manager 處理，不必逐一手動安裝。
+
+3. 其他軟體（依需求安裝）
+----------------------------------------
+VLC：用來觀看 RTSP 影像；也可使用其他支援 RTSP/H.264 的播放器。
+https://www.videolan.org/vlc/
+
+USB 序列埠驅動：若電腦無法辨識開發板，依官方入門文件安裝對應驅動。
+https://ameba-doc-arduino-sdk.readthedocs-hosted.com/en/latest/ameba_pro2/amb82-mini/Getting_Started/Getting%20Started%20with%20AMB82%20MINI.html
+
+4. 硬體與接線
+----------------------------------------
+- AMB82-MINI 開發板與相容攝影機。
+- MG996R 伺服馬達、機構支架、訊號線與 USB 資料線。
+- 馬達使用符合規格的獨立電源；不要從開發板 3.3V 腳位供電。
+- 馬達訊號接到程式 SERVO_PIN = 8 對應的腳位，請對照開發板腳位圖。
+- 馬達電源 GND 與開發板 GND 共地。
+- 開發板與觀看影像的電腦需有可互通的區域網路。
+
+5. Arduino IDE 安裝完成後的操作
+----------------------------------------
+1) 將專案資料夾命名為 PersonTracking，開啟其中的 PersonTracking.ino。
+   從本儲存庫下載 ZIP 後，請將 ameba-PresonTracking-main 重新命名為 PersonTracking。
+   使用 Git 複製時，也請將本機資料夾命名為 PersonTracking。
+2) 修改程式中的 ssid 與 pass 為自己的 Wi-Fi 名稱及密碼。
+3) 在「工具」選 AMB82-MINI 與正確的序列埠。
+4) Camera Options 選擇與實際攝影機相符的型號。
+5) NN Model Load From 選 Flash，使用 SDK 內建模型。
+6) 驗證／編譯並上傳至開發板；完成後開啟 115200 baud 序列埠監控視窗。
+7) 等候出現 RTSP URL 與 READY 訊息，將完整 RTSP URL 貼到 VLC 的網路串流。
+8) 固定好攝影機與支架，再輸入小寫 t 開始追蹤。
+
+序列埠指令：
+  t = 啟動人物追蹤
+  s = 停止追蹤並停止 PWM（馬達電源仍連接）
+  c = 回到 1500 us 中心位置並關閉追蹤
+  i = 反轉追蹤方向；若鏡頭轉離人物可切換
+  u = 再次顯示 RTSP URL
+
+初始追蹤範圍為 1200～1800 us，中心為 1500 us。
+程式挑選信心分數達門檻的最大人物框，控制單軸水平追蹤。
+請依機構行程校正 MIN_US、MAX_US 與 direction。
+Wi-Fi 無法連線時會持續等待；請先確認 ssid、pass 與網路可用。
+
+6. Arduino CLI 安裝方式（可選，與 IDE 擇一）
+----------------------------------------
+先安裝 Arduino CLI，然後依序執行：
+
+arduino-cli core update-index --additional-urls https://raw.githubusercontent.com/Ameba-AIoT/ameba-arduino-pro2/main/Arduino_package/package_realtek_amebapro2_index.json
+arduino-cli core install realtek:AmebaPro2@4.0.9 --additional-urls https://raw.githubusercontent.com/Ameba-AIoT/ameba-arduino-pro2/main/Arduino_package/package_realtek_amebapro2_index.json
+
+進入 PersonTracking 資料夾後執行（使用套件預設攝影機設定）：
+arduino-cli compile --fqbn realtek:AmebaPro2:Ameba_AMB82-MINI .
+arduino-cli board list
+arduino-cli upload --port COM3 --fqbn realtek:AmebaPro2:Ameba_AMB82-MINI .
+arduino-cli monitor --port COM3 --config baudrate=115200
+
+請將 COM3 改成實際序列埠；macOS/Linux 請使用對應的裝置路徑。
+若攝影機非套件預設型號，請先用 IDE 選型號，或用
+arduino-cli board details --fqbn realtek:AmebaPro2:Ameba_AMB82-MINI
+查詢 Camera Options，再於 compile 與 upload 指定相同的 board options。
+
+若 Windows CLI 編譯出現 locale::facet::_S_create_c_locale name not valid，
+可先在目前 PowerShell 視窗執行下列三行，再重新編譯：
+$env:LANG = 'C'
+$env:LC_ALL = 'C'
+$env:LC_CTYPE = 'C'
+此設定只影響目前視窗與其啟動的程式。
+
+7. 來源
+----------------------------------------
+官方 SDK：https://github.com/Ameba-AIoT/ameba-arduino-pro2
+官方套件索引：同第 1 節的開發板管理員網址。
+函式庫來源與本機版本已依現有 Arduino SDK 核對。
+2026-10-18：以 Arduino CLI 1.5.1、上述本機套件及 C 語系編譯通過。
+韌體大小 9,580,544 bytes（57%）；未進行開發板燒錄或實機功能測試。

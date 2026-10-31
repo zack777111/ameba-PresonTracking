@@ -1,6 +1,8 @@
 # PersonTracking
 
-使用 **AMB82-MINI**、內建 YOLOv4-tiny 模型與 **MG996R** 伺服馬達，進行人物偵測與單軸水平追蹤，並透過 RTSP 顯示人物框與影像中心標記。
+使用 **AMB82-MINI**、內建 YOLOv4-tiny 模型與 **MG996R** 伺服馬達，進行人物偵測、單一目標水平追蹤與遺失目標後的旋轉搜尋，並透過 RTSP 顯示人物框、目標 ID 與影像中心標記。
+
+目前的 `PersonTracking.ino` 內容來自 `PersonTracking_no id.ino`，保留該版本的程式邏輯。沿用主程式檔名，方便直接以 Arduino IDE 開啟；雖然來源檔名含有 `no id`，程式實際包含目標 ID 標示。
 
 完整套件清單、安裝步驟、硬體接線與 Arduino CLI 指令請見 [requirements.txt](requirements.txt)。
 
@@ -25,17 +27,24 @@
 | `i` | 反轉追蹤方向 |
 | `u` | 再次印出 RTSP URL |
 
-啟動後追蹤預設關閉。偵測到多位人物時，選擇符合信心門檻且面積最大的偵測框；人物離開時保持位置。初始追蹤行程為 1200–1800 μs，請依機構調整 `MIN_US`、`MAX_US` 與 `direction`。
+啟動後追蹤預設關閉。輸入 `t` 後，先選擇符合信心門檻且面積最大的人物框，分配 `ID:數字`，再依人物位置與框面積延續追蹤；畫面只標示目前選中的目標。人物交錯或外觀相近時，位置與面積配對可能切換到另一人，ID 不代表可靠的身分辨識。
+
+目標丟失後會進入旋轉搜尋；搜尋結束且持續無人時，再緩慢回到中心待機。一開始就沒有人物時，不會主動旋轉搜尋。初始追蹤與搜尋範圍為 **1000–2000 μs**，中心為 1500 μs；實際角度依馬達與機構校正，請調整 `MIN_US`、`MAX_US` 與 `direction`。
+
+## 已知限制
+
+- `advanceSearch()` 到達第一個端點後會反轉 `searchDirection`，下一次計算出的第二端點卻成為剛到達的位置，導致提前結束搜尋，尚未完成預期的來回掃描。本次更新保留來源程式，未修正此問題。
+- 馬達追蹤、搜尋與回中動作都依偵測回呼結果推進；偵測結果中斷時不會繼續旋轉。
 
 ## 檔案
 
-- `PersonTracking.ino`：Arduino 主程式。
+- `PersonTracking.ino`：以原 `PersonTracking_no id.ino` 內容更新的 Arduino 主程式。
 - `requirements.txt`：可分享給其他使用者的環境需求與安裝說明。
 - `.gitignore`：排除編譯產物與本機工具。
 
 ## 編譯確認
 
-2026-10-18 使用 Arduino CLI 1.5.1 與本機 AmebaPro2 4.0.9-build20250805 編譯通過，韌體使用 57% 儲存空間。Windows CLI 的語系相容設定請見 `requirements.txt`。此確認僅涵蓋編譯，未燒錄或測試實機。
+2026-10-31 使用 Arduino CLI 1.5.1 與本機 AmebaPro2 4.0.9-build20250805 編譯本次版本通過，韌體大小 9,580,544 bytes，使用 57% 儲存空間。Windows CLI 的語系相容設定請見 `requirements.txt`。此確認僅涵蓋編譯，未燒錄或測試實機。
 
 ## 官方文件
 

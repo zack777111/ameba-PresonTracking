@@ -1,52 +1,29 @@
-# PersonTracking
+# 智慧會議鏡頭自動追蹤系統
 
-使用 **AMB82-MINI**、內建 YOLOv4-tiny 模型與 **MG996R** 伺服馬達，進行人物偵測、單一目標水平追蹤與遺失目標後的旋轉搜尋，並透過 RTSP 顯示人物框、目標 ID 與影像中心標記。
+README 環境與操作說明
 
-目前的 `PersonTracking.ino` 內容來自 `PersonTracking_no id.ino`，保留該版本的程式邏輯。沿用主程式檔名，方便直接以 Arduino IDE 開啟；雖然來源檔名含有 `no id`，程式實際包含目標 ID 標示。
+## 材料與接線
 
-完整套件清單、安裝步驟、硬體接線與 Arduino CLI 指令請見 [requirements.txt](requirements.txt)。
+材料：AMB82-MINI 開發板 1 塊、相容攝影機 1 組、MG996R 伺服馬達 1 顆、旋轉支架與底座 1 組、USB 資料線及杜邦線。
 
-## 快速開始
+電源紅線接 V_USB（5V）；接地棕線接開發板 GND。控制訊號線接 PF15，對應程式 SERVO_PIN = 8。PF15 是 PWM 訊號腳
 
-1. 安裝 Arduino IDE 2.x 與 **Realtek Ameba Boards 4.0.9**（build20250805），選擇 **AMB82-MINI**。
-2. 將專案資料夾命名為 `PersonTracking`，開啟 `PersonTracking.ino`。從本儲存庫下載 ZIP 後，請將 `ameba-PresonTracking-main` 重新命名為 `PersonTracking`；使用 Git 複製時也請將本機資料夾命名為 `PersonTracking`。
-3. 修改程式中的 `ssid`、`pass`。伺服馬達訊號使用 `SERVO_PIN = 8` 對應腳位；馬達使用獨立電源，並與開發板共地。
-4. 在「工具」選擇正確攝影機、序列埠，以及 **NN Model Load From: Flash**，編譯後上傳。
-5. 開啟 **115200 baud** 序列埠監控視窗，等候 `READY`，把輸出的 RTSP URL 貼到 VLC 的網路串流。
-6. 固定好攝影機與支架後，輸入小寫 `t` 啟動追蹤。
+## SDK 模型及相機設定
 
-所有程式函式庫均由 AmebaPro2 開發板套件提供，無須另外安裝通用 Servo 或 YOLO 函式庫。
-
-## 操作指令
-
-| 指令 | 功能 |
+| 項目 | 使用設定 |
 | --- | --- |
-| `t` | 啟動追蹤 |
-| `s` | 停止追蹤並停止 PWM，馬達仍接著電源 |
-| `c` | 回到 1500 μs 中心位置並關閉追蹤 |
-| `i` | 反轉追蹤方向 |
-| `u` | 再次印出 RTSP URL |
+| 工具與 SDK | Arduino IDE 2.x；Realtek Ameba Boards 4.0.9（build20250805）；開發板選 AMB82-MINI。 |
+| 辨識模型 | SDK 內建 DEFAULT_YOLOV4TINY；偵測 Person；NN Model Load From 選 Flash。 |
+| 相機串流 | 通道 0；HD／20 FPS；H.264；透過 RTSP 觀看。 |
+| 偵測影像 | 通道 3；576 × 320／10 FPS；RGB。 |
+| 序列埠 | 115200 baud；供狀態訊息與操作指令使用。 |
 
-啟動後追蹤預設關閉。輸入 `t` 後，先選擇符合信心門檻且面積最大的人物框，分配 `ID:數字`，再依人物位置與框面積延續追蹤；畫面只標示目前選中的目標。人物交錯或外觀相近時，位置與面積配對可能切換到另一人，ID 不代表可靠的身分辨識。
+## 燒錄與操作方式
 
-目標丟失後會進入旋轉搜尋；搜尋結束且持續無人時，再緩慢回到中心待機。一開始就沒有人物時，不會主動旋轉搜尋。初始追蹤與搜尋範圍為 **1000–2000 μs**，中心為 1500 μs；實際角度依馬達與機構校正，請調整 `MIN_US`、`MAX_US` 與 `direction`。
+1. 安裝上述 IDE 與開發板套件。專案資料夾為 PersonTracking，開啟 PersonTracking.ino，填入 WiFi 的 ssid 與 pass，選擇 AMB82-MINI 和正確序列埠。
 
-## 已知限制
+2. 手動進入燒錄模式，按住 UART_DOWNLOAD，按下並放開 RESET，再放開 UART_DOWNLOAD；燒錄完成後按 RESET 執行。
 
-- `advanceSearch()` 到達第一個端點後會反轉 `searchDirection`，下一次計算出的第二端點卻成為剛到達的位置，導致提前結束搜尋，尚未完成預期的來回掃描。本次更新保留來源程式，未修正此問題。
-- 馬達追蹤、搜尋與回中動作都依偵測回呼結果推進；偵測結果中斷時不會繼續旋轉。
+3. 開啟 115200 baud 序列埠監控，等候 READY 與 RTSP URL。筆電和開發板連上同一個 WiFi，將完整 RTSP URL 貼入 VLC 的網路串流，查看人物框與 ID。
 
-## 檔案
-
-- `PersonTracking.ino`：以原 `PersonTracking_no id.ino` 內容更新的 Arduino 主程式。
-- `requirements.txt`：可分享給其他使用者的環境需求與安裝說明。
-- `.gitignore`：排除編譯產物與本機工具。
-
-## 編譯確認
-
-2026-10-31 使用 Arduino CLI 1.5.1 與本機 AmebaPro2 4.0.9-build20250805 編譯本次版本通過，韌體大小 9,580,544 bytes，使用 57% 儲存空間。Windows CLI 的語系相容設定請見 `requirements.txt`。此確認僅涵蓋編譯，未燒錄或測試實機。
-
-## 官方文件
-
-- [AmebaPro2 Arduino SDK](https://github.com/Ameba-AIoT/ameba-arduino-pro2)
-- [AMB82-MINI 入門](https://ameba-doc-arduino-sdk.readthedocs-hosted.com/en/latest/ameba_pro2/amb82-mini/Getting_Started/Getting%20Started%20with%20AMB82%20MINI.html)
+4. 固定鏡頭與支架後輸入 t 開始追蹤。s 停止追蹤與 PWM，c 回中並關閉追蹤，i 反轉方向，u 再次顯示串流網址。測試人物左右移動、離開畫面與 180 度搜尋。
